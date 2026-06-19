@@ -1,7 +1,6 @@
 // Cloudflare Worker - 简化版优选工具
 // 仅保留优选域名、优选IP、GitHub、上报和节点生成功能
 // 修复记录：已修正 VMess 协议下节点名称包含中文导致 Error 1101 的问题
-// 终极修复：已修复 handleSubscriptionRequest 中文/原生地址导致 Base64 崩溃 (Error 1101) 的问题
 
 // 默认配置
 let customPreferredIPs = [];
@@ -12,7 +11,7 @@ let egi = true;  // 启用GitHub优选
 let ev = true;   // 启用VLESS协议
 let et = false;  // 启用Trojan协议
 let vm = false;  // 启用VMess协议
-let scu = 'https://url.v1.mk/sub';   // 订阅转换地址
+let scu = 'https://url.v1.mk/sub';  // 订阅转换地址
 // ECH (Encrypted Client Hello)
 let enableECH = false;
 let customDNS = 'https://dns.joeyblog.eu.org/joeyblog';
@@ -35,15 +34,6 @@ const directDomains = [
 
 // 默认优选IP来源URL
 const defaultIPURL = 'https://raw.githubusercontent.com/qwer-search/bestip/refs/heads/main/kejilandbestip.txt';
-
-// 安全 Base64 编码函数，完美兼容 UTF-8 和中文，防止 Worker 报错 1101
-function safeBtoa(str) {
-    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
-        function toSolidBytes(match, p1) {
-            return String.fromCharCode('0x' + p1);
-        }
-    ));
-}
 
 // UUID验证
 function isValidUUID(str) {
@@ -681,8 +671,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
             subscriptionContent = generateQuantumultConfig(finalLinks);
             break;
         default:
-            // 核心修复：用安全 btoa 加密，彻底解决中文备注导致的 1101 错误
-            subscriptionContent = safeBtoa(finalLinks.join('\n'));
+            subscriptionContent = btoa(finalLinks.join('\n'));
     }
     
     return new Response(subscriptionContent, {
@@ -728,7 +717,7 @@ function generateClashConfig(links) {
         yaml += `      headers:\n`;
         yaml += `        Host: ${host}\n`;
         if (sni) {
-            yaml += `      servername: ${sni}\n`;
+            yaml += `    servername: ${sni}\n`;
         }
         if (echDomain) {
             yaml += `    ech-opts:\n`;
@@ -763,8 +752,7 @@ function generateSurgeConfig(links) {
 
 // 生成Quantumult配置
 function generateQuantumultConfig(links) {
-    // 核心修复：使用安全 btoa 加密
-    return safeBtoa(links.join('\n'));
+    return btoa(links.join('\n'));
 }
 
 // 生成iOS 26风格的主页
@@ -1474,11 +1462,11 @@ function generateHomePage(scuValue) {
             
             const currentUrl = new URL(window.location.href);
             const baseUrl = currentUrl.origin;
-            let subscriptionUrl = `\${baseUrl}/\${uuid}/sub?domain=\${encodeURIComponent(domain)}&epd=\${switches.switchDomain ? 'yes' : 'no'}&epi=\${switches.switchIP ? 'yes' : 'no'}&egi=\${switches.switchGitHub ? 'yes' : 'no'}`;
+            let subscriptionUrl = \`\${baseUrl}/\${uuid}/sub?domain=\${encodeURIComponent(domain)}&epd=\${switches.switchDomain ? 'yes' : 'no'}&epi=\${switches.switchIP ? 'yes' : 'no'}&egi=\${switches.switchGitHub ? 'yes' : 'no'}\`;
             
             // 添加GitHub优选URL
             if (githubUrl) {
-                subscriptionUrl += `&piu=\${encodeURIComponent(githubUrl)}`;
+                subscriptionUrl += \`&piu=\${encodeURIComponent(githubUrl)}\`;
             }
             
             // 添加协议选择
@@ -1497,14 +1485,14 @@ function generateHomePage(scuValue) {
             if (switches.switchECH) {
                 subscriptionUrl += '&ech=yes';
                 const dnsVal = document.getElementById('customDNS') && document.getElementById('customDNS').value.trim();
-                if (dnsVal) subscriptionUrl += `&customDNS=\${encodeURIComponent(dnsVal)}`;
+                if (dnsVal) subscriptionUrl += \`&customDNS=\${encodeURIComponent(dnsVal)}\`;
                 const domainVal = document.getElementById('customECHDomain') && document.getElementById('customECHDomain').value.trim();
-                if (domainVal) subscriptionUrl += `&customECHDomain=\${encodeURIComponent(domainVal)}`;
+                if (domainVal) subscriptionUrl += \`&customECHDomain=\${encodeURIComponent(domainVal)}\`;
             }
             
             // 添加自定义路径
             if (customPath && customPath !== '/') {
-                subscriptionUrl += `&path=\${encodeURIComponent(customPath)}`;
+                subscriptionUrl += \`&path=\${encodeURIComponent(customPath)}\`;
             }
             
             let finalUrl = subscriptionUrl;
